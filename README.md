@@ -2,11 +2,12 @@
 
 ## 1. Giới thiệu
 
-Hệ thống **giám sát công nghiệp** sử dụng ESP32.
+Phần cứng ứng dụng **giám sát công nghiệp** sử dụng ESP32.
 
 ## 2. Tính năng
 
+- Giám sát dữ liệu cảm biến và điều khiển GPIO
 - MQTT over TLS
 - Ethernet và Wi-Fi
-- Giám sát dữ liệu cảm biến
-- Điều khiển GPIO
+- TFT LCD hiển thị dữ liệu và đồ thị
+- SD lưu trữ dữ liệu
