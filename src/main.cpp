@@ -64,7 +64,7 @@ void setup() {
   gpio_init();
   Serial.println( "[GPIO] GPIO setup done!" );
 
-  delay(10);
+  delay(100);
 
   
 
