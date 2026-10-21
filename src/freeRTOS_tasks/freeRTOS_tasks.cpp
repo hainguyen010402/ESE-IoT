@@ -851,6 +851,8 @@ void taskDisplay(void *pvParameters)
 
 
 
+
+
 void taskDisplayProcessing(void *pvParameters) 
 {       
   //Serial.println("da vao taskdisplay");    
@@ -902,7 +904,7 @@ void taskDisplayProcessing(void *pvParameters)
 
 
 
-
+/*
 void taskSerialInput(void *pvParameters)
 {
     String input = "";
@@ -1226,6 +1228,7 @@ void taskSerialInput(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
+*/
 
 
   
