@@ -13,7 +13,7 @@
 #include "../wifi/wifi.h"
 
 //extern PubSubClient client;
-extern PubSubClient tlsClient;
+extern PubSubClient mqttClient;
 
 
 // mqtt server

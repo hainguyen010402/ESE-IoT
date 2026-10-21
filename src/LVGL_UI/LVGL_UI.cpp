@@ -37,10 +37,10 @@ uint8_t *draw_buf2 = nullptr;
 bool initDrawBuffer()
 {
     draw_buf1 = (uint8_t *)heap_caps_malloc(DRAW_BUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    draw_buf2 = (uint8_t *)heap_caps_malloc(DRAW_BUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+    //draw_buf2 = (uint8_t *)heap_caps_malloc(DRAW_BUF_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
 
-    if (!draw_buf1 || !draw_buf2) {
-    //if (!draw_buf1) {
+    //if (!draw_buf1 || !draw_buf2) {
+    if (!draw_buf1) {
         Serial.println("Draw buffer allocation failed!");
         return false;
     }
@@ -225,7 +225,7 @@ void lvgl_init()
     /*Else create a display yourself*/
     disp = lv_display_create(TFT_HOR_RES, TFT_VER_RES);
     lv_display_set_flush_cb(disp, my_disp_flush);
-    lv_display_set_buffers(disp, draw_buf1, draw_buf2, DRAW_BUF_SIZE,
+    lv_display_set_buffers(disp, draw_buf1, NULL, DRAW_BUF_SIZE,
                        LV_DISPLAY_RENDER_MODE_PARTIAL);
   #endif
   

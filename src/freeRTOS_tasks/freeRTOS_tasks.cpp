@@ -34,6 +34,9 @@ SemaphoreHandle_t spi_mutex;
 
 TaskHandle_t taskDisplayHandle = NULL;
 TaskHandle_t taskProcessingHandle = NULL;
+TaskHandle_t taskSerialHandle = NULL;
+TaskHandle_t taskReadingSensorGpioHandle = NULL;
+
 
 
 
@@ -155,7 +158,7 @@ void connectingEthernet()
 
       ETHERNET_CONNECT_FAILED_NOTIFY = false;
 
-      get_time_init();
+      get_time_init_e();
       
       PROCESSING_STATE = MQTT;
     }
@@ -187,6 +190,7 @@ void searchingWifi()
     WiFi.disconnect();
     vTaskDelay(pdMS_TO_TICKS(100));
 
+
     Serial.println("Scanning WiFi...");
     
     int n = WiFi.scanNetworks();
@@ -199,7 +203,10 @@ void searchingWifi()
         wifiCount = 0;
         xSemaphoreGive(lvgl_mutex);
       }
-    } 
+    }
+    
+    
+
     else 
     {
       Serial.printf("Found %d WiFi:\n", n);
@@ -341,18 +348,23 @@ void connectingMQTT()
 
   else
   {
-    if (xSemaphoreTake(mqtt_mutex, pdMS_TO_TICKS(5000)) == pdTRUE)
-    {
+
       // code
       if (!ETHERNET_MODE_FLAG) //mode wifi
       {
         Serial.println("[Mode: WiFi] Setting WiFi Client as the Client for Server...");
-        tlsClient.setClient(espTlsClient_Wifi);
+        mqttClient.setClient(espTlsClient_Wifi);
+        espTlsClient_Wifi.setCACert(MQTT_CA_CERT);
+        //espTlsClient_Wifi.setInsecure();
+        espTlsClient_Wifi.setHandshakeTimeout(5);   // đơn vị: GIÂY (không phải ms)
+        // 1) TCP connect + đọc/ghi socket (WiFiClientSecure)
+        espTlsClient_Wifi.setTimeout(5);            // giây (xem lưu ý bên dưới)
       }
       else //mode ethernet
       {
         Serial.println("[Mode: Ethernet] Setting Ethernet Client as the Client for Server...");
-        tlsClient.setClient(espClient_Eth);
+        mqttClient.setClient(espTlsClient_Eth);
+        espTlsClient_Eth.setTimeout(5000);
       }
 
       
@@ -364,19 +376,23 @@ void connectingMQTT()
 
       
 
-      espTlsClient_Wifi.setCACert(MQTT_CA_CERT);
-        //espTlsClient_Wifi.setInsecure();
-      espTlsClient_Wifi.setHandshakeTimeout(5);   // đơn vị: GIÂY (không phải ms)
-      // 1) TCP connect + đọc/ghi socket (WiFiClientSecure)
-      espTlsClient_Wifi.setTimeout(5);            // giây (xem lưu ý bên dưới)
+      
 
-      tlsClient.setServer(mqtt_server.c_str(), 8883);
-      tlsClient.setCallback(mqtt_callback);
 
-      tlsClient.setBufferSize(1024);
-      tlsClient.setKeepAlive(30);
+
+
+      
+
+
+
+
+      mqttClient.setServer(mqtt_server.c_str(), 8883);
+      mqttClient.setCallback(mqtt_callback);
+
+      mqttClient.setBufferSize(1024);
+      mqttClient.setKeepAlive(30);
       // Chờ CONNACK từ broker và các lần đọc của PubSubClient
-      tlsClient.setSocketTimeout(5);              // giây
+      mqttClient.setSocketTimeout(5);              // giây
 
       
       Serial.println("Client connecting to Server...");
@@ -386,8 +402,7 @@ void connectingMQTT()
 
       mqtt_connect();
       
-      xSemaphoreGive(mqtt_mutex);
-    }
+
   }
 
 
@@ -414,9 +429,11 @@ void connectingMQTT()
     {
       // code
     
-      tlsClient.disconnect();
+      mqttClient.disconnect();
       xSemaphoreGive(mqtt_mutex);
     }
+
+    
 
     PROCESSING_STATE = MODE_CONFIGURATION;
   }
@@ -440,8 +457,7 @@ void connectingMQTT()
 void mqttTelemetry()
 {
   //Serial.println("Telemetry Task");
-  if (xSemaphoreTake(mqtt_mutex, pdMS_TO_TICKS(5000)) == pdTRUE)
-  {
+
     // code
 
     if (!ETHERNET_MODE_FLAG)
@@ -452,7 +468,7 @@ void mqttTelemetry()
           if (selectedSSID.length() > 0)
               reconnectWiFi();
 
-          vTaskDelay(pdMS_TO_TICKS(10));
+          vTaskDelay(pdMS_TO_TICKS(2000));
           return;
       }
     }
@@ -465,7 +481,7 @@ void mqttTelemetry()
       if (!EthernetConnectStatus)
       {
           ethernet_reconnect();
-          vTaskDelay(pdMS_TO_TICKS(10));
+          vTaskDelay(pdMS_TO_TICKS(2000));
           return;
       }
     }
@@ -473,14 +489,15 @@ void mqttTelemetry()
 
 
     // MQTT reconnect
-    if (!tlsClient.connected() || !MQTT_SUBSCRIBE_SUCCESS)
+    if (!mqttClient.connected() || !MQTT_SUBSCRIBE_SUCCESS)
     {
+        Serial.println("MQTT RECONNECTING...");
         MQTT_STATUS_FLAG = false;
         MQTT_CONNECTING_FLAG = true;
 
         mqtt_connect();
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(2000));
         return;
     }
 
@@ -490,7 +507,7 @@ void mqttTelemetry()
     MQTT_CONNECTING_FLAG = false;
 
     // Xử lý MQTT liên tục
-    tlsClient.loop();
+    mqttClient.loop();
 
     
     
@@ -596,14 +613,16 @@ void mqttTelemetry()
       Serial.println("Disconnected!");
       WiFi.disconnect();
       resetW5500();
-      tlsClient.disconnect();
+      mqttClient.disconnect();
+
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
 
       PROCESSING_STATE = MODE_CONFIGURATION;
     }
   
     
-    xSemaphoreGive(mqtt_mutex);
-  }
+
 }
 
 
@@ -1028,7 +1047,7 @@ void taskSerialInput(void *pvParameters)
                   Serial.println("Disconnected!");
                   WiFi.disconnect();
                   resetW5500();
-                  tlsClient.disconnect();
+                  mqttClient.disconnect();
 
                 }
                 else if (input[0] == '.' && input[1] == 'w' && input[2] == 'd')
@@ -1041,7 +1060,7 @@ void taskSerialInput(void *pvParameters)
                 else if (input[0] == '.' && input[1] == 'm' && input[2] == 'd')
                 {
 
-                  tlsClient.disconnect();
+                  mqttClient.disconnect();
                   Serial.println("MQTT Disconnected!");
                   
                 }
@@ -1244,6 +1263,18 @@ void taskSerial(void *pvParameters)
     
     Serial.printf("Free heap: %u\n", ESP.getFreeHeap());
 
+    Serial.printf("Display stack watermark: %u bytes\n",
+    uxTaskGetStackHighWaterMark(taskDisplayHandle));
+
+    Serial.printf("Processing stack watermark: %u bytes\n",
+    uxTaskGetStackHighWaterMark(taskProcessingHandle));
+
+    Serial.printf("Serial stack watermark: %u bytes\n",
+    uxTaskGetStackHighWaterMark(taskSerialHandle));
+
+    Serial.printf("Reading sensor and GPIO stack watermark: %u bytes\n",
+    uxTaskGetStackHighWaterMark(taskReadingSensorGpioHandle));
+
 
     
     /*
@@ -1304,10 +1335,10 @@ void freertos_init()
 
 
   //xTaskCreatePinnedToCore(taskDisplayProcessing, "TaskDisplayProcessing", 8192, NULL, 3, &taskDisplayHandle, 1);
-  xTaskCreatePinnedToCore(taskDisplay, "TaskDisplay", 8192, NULL, 2, &taskDisplayHandle, 1);
-  xTaskCreatePinnedToCore(taskProcessing, "TaskProcessing", 8192, NULL, 3, &taskProcessingHandle, 0);
-  xTaskCreatePinnedToCore(taskSerial,"taskSerial",2048,NULL,1,NULL,0);
-  xTaskCreatePinnedToCore(taskReadingSensorGpio,"taskReadingSensorGpio",4096,NULL,2,NULL,0);
+  xTaskCreatePinnedToCore(taskDisplay, "TaskDisplay", 5500, NULL, 2, &taskDisplayHandle, 1);
+  xTaskCreatePinnedToCore(taskProcessing, "TaskProcessing", 6144, NULL, 3, &taskProcessingHandle, 0);
+  xTaskCreatePinnedToCore(taskSerial,"taskSerial",2048,NULL,1,&taskSerialHandle,0);
+  xTaskCreatePinnedToCore(taskReadingSensorGpio,"taskReadingSensorGpio",2048,NULL,2,&taskReadingSensorGpioHandle,0);
   //xTaskCreatePinnedToCore(taskStatusChecking,"taskStatusChecking",2048,NULL,1,NULL,0);
   //xTaskCreatePinnedToCore(taskErrorHandling,"taskErrorHandling",2048,NULL,1,NULL,0);
 }

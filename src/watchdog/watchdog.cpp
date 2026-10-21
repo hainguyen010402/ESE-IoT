@@ -6,7 +6,7 @@
 void watchdog_init()
 {
     // Timeout = 10 giây, panic khi watchdog timeout
-    esp_err_t err = esp_task_wdt_init(10, true);
+    esp_err_t err = esp_task_wdt_init(100, true);
 
     if (err == ESP_OK)
     {

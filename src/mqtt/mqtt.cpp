@@ -17,7 +17,7 @@
 
 
 //PubSubClient client;
-PubSubClient tlsClient;
+PubSubClient mqttClient;
 
 // mqtt server
 String mqtt_server;
@@ -112,7 +112,7 @@ static bool publishObject(const char* topic, JsonVariantConst obj)
 
     
         // code
-        bool ok = tlsClient.connected() && tlsClient.publish(topic, buf);
+        bool ok = mqttClient.connected() && mqttClient.publish(topic, buf);
         
 
         Serial.print(ok ? "[MQTT SUCCEED] " : "[MQTT FAILED] ");
@@ -332,14 +332,14 @@ bool mqttPublish(JsonDocument& doc)
     
         // code
 
-        bool result_topicInfo = tlsClient.publish(TOPIC_TELEMETRY_INFO, buffer_topicInfo);
+        bool result_topicInfo = mqttClient.publish(TOPIC_TELEMETRY_INFO, buffer_topicInfo);
 
-        if (result_topicInfo == 0 || tlsClient.connected() == 0)
+        if (result_topicInfo == 0 || mqttClient.connected() == 0)
         {
         Serial.print("[MQTT FAILED] 1");
         }
 
-        if (result_topicInfo == 1 && tlsClient.connected() == 1)
+        if (result_topicInfo == 1 && mqttClient.connected() == 1)
         {
         Serial.print("[MQTT SUCCEED] ");
         }
@@ -362,14 +362,14 @@ bool mqttPublish(JsonDocument& doc)
 
         serializeJson(doc["measurement"], buffer_topicMeasurement);
 
-        bool result_topicMeasurement = tlsClient.publish(TOPIC_TELEMETRY_MEASUREMENT, buffer_topicMeasurement);
+        bool result_topicMeasurement = mqttClient.publish(TOPIC_TELEMETRY_MEASUREMENT, buffer_topicMeasurement);
 
-        if (result_topicMeasurement == 0 || tlsClient.connected() == 0)
+        if (result_topicMeasurement == 0 || mqttClient.connected() == 0)
         {
         Serial.print("[MQTT FAILED] 2");
         }
 
-        if (result_topicMeasurement == 1 && tlsClient.connected() == 1)
+        if (result_topicMeasurement == 1 && mqttClient.connected() == 1)
         {
         Serial.print("[MQTT SUCCEED] ");
         }
@@ -392,14 +392,14 @@ bool mqttPublish(JsonDocument& doc)
 
         serializeJson(doc["relay"], buffer_topicRelay);
 
-        bool result_topicRelay = tlsClient.publish(TOPIC_TELEMETRY_RELAYSTATUS, buffer_topicRelay);
+        bool result_topicRelay = mqttClient.publish(TOPIC_TELEMETRY_RELAYSTATUS, buffer_topicRelay);
 
-        if (result_topicRelay == 0 || tlsClient.connected() == 0)
+        if (result_topicRelay == 0 || mqttClient.connected() == 0)
         {
         Serial.print("[MQTT FAILED] 3");
         }
 
-        if (result_topicRelay == 1 && tlsClient.connected() == 1)
+        if (result_topicRelay == 1 && mqttClient.connected() == 1)
         {
         Serial.print("[MQTT SUCCEED] ");
         }
@@ -498,7 +498,9 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length)
 
 void mqtt_connect()
 {
-    if (tlsClient.connect(DEVICE_ID, MQTT_ID, MQTT_PW, TOPIC_LWT, 1, true, "offline"))
+    Serial.println("MQTT CONNECTING...");
+
+    if (mqttClient.connect(DEVICE_ID, MQTT_ID, MQTT_PW, TOPIC_LWT, 1, true, "offline"))
     {
     
         MQTT_IP_CONFIGURATED_FIRST_TIME = false;
@@ -511,7 +513,7 @@ void mqtt_connect()
 
         mqtt_buildTopics(DEVICE_ID);
 
-        if (!tlsClient.subscribe(TOPIC_TELEMETRY_INFO))
+        if (!mqttClient.subscribe(TOPIC_TELEMETRY_INFO))
         {
             Serial.println("Subcribe to topic failed! Retrying...");
             MQTT_SUBSCRIBE_SUCCESS = false;
@@ -526,13 +528,13 @@ void mqtt_connect()
 
         Serial.print("Subscribe: ");
         Serial.println(TOPIC_TELEMETRY_INFO);
-        tlsClient.subscribe(TOPIC_TELEMETRY_MEASUREMENT);
+        mqttClient.subscribe(TOPIC_TELEMETRY_MEASUREMENT);
         Serial.print("Subscribe: ");
         Serial.println(TOPIC_TELEMETRY_MEASUREMENT);
-        tlsClient.subscribe(TOPIC_TELEMETRY_RELAYSTATUS);
+        mqttClient.subscribe(TOPIC_TELEMETRY_RELAYSTATUS);
         Serial.print("Subscribe: ");
         Serial.println(TOPIC_TELEMETRY_RELAYSTATUS);
-        tlsClient.subscribe(TOPIC_CMD_RELAYSET);
+        mqttClient.subscribe(TOPIC_CMD_RELAYSET);
         Serial.print("Subscribe: ");
         Serial.println(TOPIC_CMD_RELAYSET);
     }
@@ -548,15 +550,13 @@ void mqtt_connect()
             MQTT_STATUS_FLAG = false;
             
             Serial.print("MQTT Failed: ");
-            Serial.println(tlsClient.state());
+            Serial.println(mqttClient.state());
 
             PROCESSING_STATE = MQTT;
         }
         else
         {
             Serial.print("MQTT Reconnect Failed, retrying...");
-            vTaskDelay(pdMS_TO_TICKS(2000));
-
         }
     }
 

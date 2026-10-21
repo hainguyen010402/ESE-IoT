@@ -15,3 +15,5 @@
 #define TFT_RST 17
 #define TOUCH_RST -1
 #define SD_RST -1
+
+#define TLS_ENTROPY_PIN 2 // chân cho TLS ethernet
