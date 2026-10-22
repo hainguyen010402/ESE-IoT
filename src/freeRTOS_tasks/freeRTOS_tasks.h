@@ -44,7 +44,7 @@ void taskStatusChecking(void *pvParameters);
 void taskErrorHandling(void *pvParameters);
 void taskDisplay(void *pvParameters);
 void taskDisplayProcessing(void *pvParameters);
-void taskSerialInput(void *pvParameters);
+//void taskSerialInput(void *pvParameters);
 void freertos_init();
 
 
